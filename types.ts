@@ -52,4 +52,5 @@ export interface CalculatedStock {
   unitPrice: number;
   description: string;
   lastModifiedBy?: string;
+  lastModifiedAt?: string;
 }

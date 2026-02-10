@@ -19,6 +19,10 @@ const App: React.FC = () => {
     const saved = localStorage.getItem(SESSION_KEY);
     return saved ? JSON.parse(saved) : null;
   });
+    const handleLogout = () => {
+      localStorage.removeItem(SESSION_KEY);
+      setCurrentUser(null);
+    };
 
   const [users, setUsers] = useState<User[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
@@ -165,7 +169,8 @@ const App: React.FC = () => {
             endStock, 
             unitPrice: product.unitPrice, 
             description: entry.description || '', 
-            lastModifiedBy: entry.lastModifiedBy
+            lastModifiedBy: entry.lastModifiedBy,
+            lastModifiedAt: entry.lastModifiedAt
           };
         });
         results[section][d] = currentDayResults;
@@ -175,6 +180,34 @@ const App: React.FC = () => {
   }, [products, dailyData]);
 
   const currentStocks = dailyCalculations[activeSection]?.[activeDay] || [];
+
+// Logic to calculate last modified info
+  const lastModifiedInfo = useMemo(() => {
+    const modifiedStocks = currentStocks.filter(s => s.lastModifiedAt && s.lastModifiedBy);
+    
+    if (modifiedStocks.length === 0) return null;
+
+    // Sort descending by time
+    modifiedStocks.sort((a, b) => new Date(b.lastModifiedAt!).getTime() - new Date(a.lastModifiedAt!).getTime());
+
+    const latest = modifiedStocks[0];
+    const latestTime = new Date(latest.lastModifiedAt!);
+
+    // Count how many items were modified by this user within 5 minutes of the latest change
+    // This groups the "session" of edits
+    const fiveMinutesInMillis = 5 * 60 * 1000;
+    const recentBatchCount = modifiedStocks.filter(s => {
+        if (s.lastModifiedBy !== latest.lastModifiedBy) return false;
+        const timeDiff = latestTime.getTime() - new Date(s.lastModifiedAt!).getTime();
+        return timeDiff >= 0 && timeDiff <= fiveMinutesInMillis;
+    }).length;
+
+    return {
+        user: latest.lastModifiedBy,
+        time: latestTime.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }),
+        count: recentBatchCount
+    };
+  }, [currentStocks]);
 
   const handleUpdateEntry = useCallback(async (productId: string, field: string, value: string | number) => {
     if (!currentUser) return;
@@ -311,7 +344,7 @@ const App: React.FC = () => {
   return (
     <Layout 
       activeDay={activeDay} onSelectDay={handleSelectDay} 
-      currentUser={currentUser} onLogout={() => setCurrentUser(null)}
+      currentUser={currentUser} onLogout={handleLogout}
       onOpenUserManagement={() => setIsUserManagementOpen(true)}
     >
       <div className="max-w-7xl mx-auto pb-12">
@@ -334,7 +367,15 @@ const App: React.FC = () => {
                 <button onClick={() => setActiveSection('gudang')} className={`flex items-center gap-2 px-8 py-3 rounded-2xl text-[11px] font-black transition-all ${activeSection === 'gudang' ? 'bg-indigo-600 text-white shadow-xl scale-105' : 'text-slate-500 hover:bg-white/60'}`}>UNIT GUDANG</button>
                 <button onClick={() => setActiveSection('booth')} className={`flex items-center gap-2 px-8 py-3 rounded-2xl text-[11px] font-black transition-all ${activeSection === 'booth' ? 'bg-amber-500 text-white shadow-xl scale-105' : 'text-slate-500 hover:bg-white/60'}`}>UNIT BOOTH</button>
             </div>
-            
+            {/* Last Modified Section */}
+            {lastModifiedInfo && (
+                <div className="mt-4 flex items-center gap-2 animate-in fade-in slide-in-from-top-2 duration-500">
+                    <div className="w-1.5 h-1.5 rounded-full bg-slate-400"></div>
+                    <p className="text-[11px] text-slate-500 font-medium italic">
+                        Terakhir diubah oleh <span className="font-bold text-slate-700 underline decoration-indigo-200">{lastModifiedInfo.user}</span> di <span className="uppercase font-bold text-slate-600">{activeSection}</span> <span className="px-1.5 py-0.5 rounded bg-slate-100 border border-slate-200 text-[10px] font-bold text-slate-600 mx-1">{lastModifiedInfo.count} baris/barang</span> di jam <span className="font-bold text-slate-700">{lastModifiedInfo.time}</span>
+                    </p>
+                </div>
+            )}
             <p className={`mt-3 text-[10px] font-bold px-3 py-1 rounded-lg w-fit border italic ${activeSection === 'gudang' ? 'text-indigo-600 bg-indigo-50 border-indigo-100' : 'text-amber-600 bg-amber-50 border-amber-100'}`}>
                 <i className="fas fa-info-circle mr-1"></i> Stok unit {activeSection} terpisah dan mandiri.
             </p>
