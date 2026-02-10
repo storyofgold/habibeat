@@ -9,6 +9,8 @@ interface LayoutProps {
   currentUser: User | null;
   onLogout: () => void;
   onOpenUserManagement?: () => void;
+  viewDate: Date;
+  onMonthChange: (date: Date) => void;
 }
 
 const Layout: React.FC<LayoutProps> = ({ 
@@ -17,9 +19,36 @@ const Layout: React.FC<LayoutProps> = ({
   onSelectDay, 
   currentUser, 
   onLogout,
-  onOpenUserManagement 
+  onOpenUserManagement,
+  viewDate,
+  onMonthChange
 }) => {
-  const today = new Date().getDate();
+  const today = new Date();
+  // Reset time part for accurate comparison
+  const currentMonthDate = new Date(today.getFullYear(), today.getMonth(), 1);
+  const viewingMonthDate = new Date(viewDate.getFullYear(), viewDate.getMonth(), 1);
+  
+  const isViewingCurrentMonth = viewingMonthDate.getTime() === currentMonthDate.getTime();
+  
+  // Format Month Year string (e.g. "Februari 2026")
+  const monthYearString = new Intl.DateTimeFormat('id-ID', { month: 'long', year: 'numeric' }).format(viewDate);
+
+  const handlePrevMonth = () => {
+    const newDate = new Date(viewDate);
+    newDate.setMonth(newDate.getMonth() - 1);
+    onMonthChange(newDate);
+  };
+
+  const handleNextMonth = () => {
+    const newDate = new Date(viewDate);
+    newDate.setMonth(newDate.getMonth() + 1);
+    // Prevent going to future months beyond current month
+    if (newDate > today) return; 
+    onMonthChange(newDate);
+  };
+
+  const isNextDisabled = isViewingCurrentMonth;
+
 
   return (
     <div className="flex h-screen bg-slate-50 overflow-hidden">
@@ -44,6 +73,25 @@ const Layout: React.FC<LayoutProps> = ({
         </div>
 
         <div className="flex-1 overflow-y-auto p-4 space-y-1">
+
+          {/* Month Navigator */}
+          <div className="bg-slate-50 p-2 rounded-xl mb-6 border border-slate-200 flex items-center justify-between">
+            <button 
+                onClick={handlePrevMonth}
+                className="w-8 h-8 flex items-center justify-center rounded-lg bg-white text-slate-500 hover:text-indigo-600 shadow-sm border border-slate-100 transition-colors"
+            >
+                <i className="fas fa-chevron-left text-xs"></i>
+            </button>
+            <span className="text-xs font-black text-slate-700 uppercase tracking-tight">{monthYearString}</span>
+            <button 
+                onClick={handleNextMonth}
+                disabled={isNextDisabled}
+                className={`w-8 h-8 flex items-center justify-center rounded-lg shadow-sm border border-slate-100 transition-colors ${isNextDisabled ? 'bg-slate-100 text-slate-300 cursor-not-allowed' : 'bg-white text-slate-500 hover:text-indigo-600'}`}
+            >
+                <i className="fas fa-chevron-right text-xs"></i>
+            </button>
+          </div>
+
           <div className="mb-6 px-2">
             <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-3">Tindakan Admin</p>
             {currentUser?.role === 'admin' && (
@@ -69,7 +117,9 @@ const Layout: React.FC<LayoutProps> = ({
           </p>
 
           {Array.from({ length: 31 }, (_, i) => i + 1).map((day) => {
-            const isFuture = day > today;
+            // Lock future days ONLY if we are in current month
+            const isFuture = isViewingCurrentMonth && day > today.getDate();
+            
             return (
               <button
                 key={day}
@@ -133,7 +183,7 @@ const Layout: React.FC<LayoutProps> = ({
               className="bg-slate-100 border-none text-[10px] rounded-lg px-2 py-1.5 outline-none font-bold text-slate-600"
             >
               {Array.from({ length: 31 }, (_, i) => i + 1)
-                .filter(day => day <= today)
+                    .filter(day => !isViewingCurrentMonth || day <= today.getDate())
                 .map(day => (
                   <option key={day} value={day}>Tgl {day}</option>
               ))}

@@ -12,6 +12,7 @@ interface InventoryTableProps {
   onDeleteProduct: (id: string) => void;
   section?: 'gudang' | 'booth';
   syncStatuses?: Record<string, 'saving' | 'success' | 'error'>;
+  isArchived?: boolean;
 }
 
 const InventoryTable: React.FC<InventoryTableProps> = ({ 
@@ -23,12 +24,14 @@ const InventoryTable: React.FC<InventoryTableProps> = ({
   onEditProduct, 
   onDeleteProduct,
   section = 'gudang',
-  syncStatuses = {}
+  syncStatuses = {},
+  isArchived = false
 }) => {
   const isAdmin = currentUser?.role === 'admin';
   const [localValues, setLocalValues] = useState<Record<string, string>>({});
 
   const handleBlur = (productId: string, field: 'stockIn' | 'stockOut' | 'openingStock', value: string) => {
+    if (isArchived) return;
     const val = value === '' ? 0 : parseInt(value);
     const finalVal = isNaN(val) ? 0 : val;
     onUpdateEntry(productId, field, finalVal);
@@ -134,6 +137,10 @@ const InventoryTable: React.FC<InventoryTableProps> = ({
   };
 
   const renderStatus = (productId: string, field: string) => {
+    // Hide status in archive mode
+    if (isArchived) return null;
+    
+    // Look for key that includes the current section
     const status = syncStatuses[`${section}:${productId}:${field}`];
     if (!status) return null;
 
@@ -172,7 +179,7 @@ const InventoryTable: React.FC<InventoryTableProps> = ({
             <i className="fas fa-file-csv"></i> CSV
           </button>
           
-          {isAdmin && (
+          {isAdmin && !isArchived && (
             <button 
               onClick={onAddProduct}
               className="bg-slate-900 hover:bg-black text-white px-4 py-2 rounded-xl text-[9px] font-black transition-all flex items-center gap-2 shadow-xl active:scale-95 uppercase tracking-wider ml-1"
@@ -195,7 +202,7 @@ const InventoryTable: React.FC<InventoryTableProps> = ({
               <th className="px-4 py-2 text-center text-rose-600">Keluar</th>
               <th className="px-4 py-2 text-center font-extrabold text-slate-900 border-x border-slate-100">Akhir</th>
               <th className="px-4 py-2">Keterangan</th>
-              {isAdmin && <th className="px-4 py-2 text-center no-print w-20">Aksi</th>}
+              {isAdmin && !isArchived && <th className="px-4 py-2 text-center no-print w-20">Aksi</th>}
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-50 text-xs">
@@ -214,7 +221,7 @@ const InventoryTable: React.FC<InventoryTableProps> = ({
                 </td>
                 
                 <td className="px-4 py-1 text-center font-black bg-slate-50/20">
-                  {day === 1 && isAdmin ? (
+                  {day === 1 && isAdmin && !isArchived ? (
                     <div className="relative inline-block">
                         {renderStatus(stock.productId, 'openingStock')}
                         <input
@@ -233,10 +240,11 @@ const InventoryTable: React.FC<InventoryTableProps> = ({
                     {renderStatus(stock.productId, 'stockIn')}
                     <input
                       type="number"
+                      disabled={isArchived}
                       value={localValues[`${stock.productId}:stockIn`] ?? (stock.stockIn || '')}
                       onChange={(e) => setLocalValues({...localValues, [`${stock.productId}:stockIn`]: e.target.value})}
                       onBlur={(e) => handleBlur(stock.productId, 'stockIn', e.target.value)}
-                      className="w-14 bg-white border-emerald-100 border text-emerald-700 text-center rounded py-1 outline-none focus:ring-1 focus:ring-emerald-500/20 focus:border-emerald-600 font-black transition-all text-xs"
+                      className={`w-14 bg-white border-emerald-100 border text-emerald-700 text-center rounded py-1 outline-none focus:ring-1 focus:ring-emerald-500/20 focus:border-emerald-600 font-black transition-all text-xs ${isArchived ? 'bg-transparent border-none text-slate-400' : ''}`}
                     />
                   </div>
                 </td>
@@ -246,10 +254,11 @@ const InventoryTable: React.FC<InventoryTableProps> = ({
                     {renderStatus(stock.productId, 'stockOut')}
                     <input
                       type="number"
+                      disabled={isArchived}
                       value={localValues[`${stock.productId}:stockOut`] ?? (stock.stockOut || '')}
                       onChange={(e) => setLocalValues({...localValues, [`${stock.productId}:stockOut`]: e.target.value})}
                       onBlur={(e) => handleBlur(stock.productId, 'stockOut', e.target.value)}
-                      className="w-14 bg-white border-rose-100 border text-rose-700 text-center rounded py-1 outline-none focus:ring-1 focus:ring-rose-500/20 focus:border-rose-600 font-black transition-all text-xs"
+                      className={`w-14 bg-white border-rose-100 border text-rose-700 text-center rounded py-1 outline-none focus:ring-1 focus:ring-rose-500/20 focus:border-rose-600 font-black transition-all text-xs ${isArchived ? 'bg-transparent border-none text-slate-400' : ''}`}
                     />
                    </div>
                 </td>
@@ -262,16 +271,17 @@ const InventoryTable: React.FC<InventoryTableProps> = ({
                   <div className="relative">
                     {renderStatus(stock.productId, 'description')}
                     <input
-                        type="text" placeholder="..."
+                        type="text" placeholder={isArchived ? "" : "..."}
+                        disabled={isArchived}
                         value={localValues[`${stock.productId}:description`] ?? stock.description}
                         onChange={(e) => setLocalValues({...localValues, [`${stock.productId}:description`]: e.target.value})}
                         onBlur={(e) => onUpdateEntry(stock.productId, 'description', e.target.value)}
-                        className="w-full bg-transparent border-b border-slate-100 focus:border-indigo-400 outline-none transition-all text-slate-500 text-[9px] py-0.5 italic font-medium"
+                        className={`w-full bg-transparent border-b border-slate-100 focus:border-indigo-400 outline-none transition-all text-slate-500 text-[9px] py-0.5 italic font-medium ${isArchived ? 'border-none' : ''}`}
                     />
                   </div>
                 </td>
                 
-                {isAdmin && (
+                {isAdmin && !isArchived && (
                   <td className="px-4 py-1 text-center no-print">
                     <div className="flex items-center justify-center gap-1">
                       <button onClick={() => onEditProduct(stock.productId)} className="w-6 h-6 rounded bg-slate-100 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 transition-all flex items-center justify-center shadow-sm"><i className="fas fa-edit text-[9px]"></i></button>

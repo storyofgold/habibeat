@@ -26,6 +26,8 @@ export interface DailyStockEntry {
   description: string;
   lastModifiedBy?: string;
   lastModifiedAt?: string;
+  month?: number;
+  year?: number;
 }
 
 export interface DayData {
@@ -54,3 +56,4 @@ export interface CalculatedStock {
   lastModifiedBy?: string;
   lastModifiedAt?: string;
 }
+
