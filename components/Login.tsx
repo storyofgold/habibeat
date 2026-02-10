@@ -1,6 +1,6 @@
-
 import React, { useState } from 'react';
 import { User } from '../types';
+import logo from '@/assets/logo.png';
 
 interface LoginProps {
   onLogin: (user: User) => void;
@@ -31,10 +31,11 @@ const Login: React.FC<LoginProps> = ({ onLogin, users }) => {
     <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
       <div className="max-w-md w-full">
         <div className="text-center mb-10">
-          <div className="w-20 h-20 bg-indigo-600 rounded-2xl shadow-xl shadow-indigo-200 mx-auto flex items-center justify-center mb-4 transform -rotate-6">
-            <i className="fas fa-boxes-stacked text-white text-3xl"></i>
-          </div>
-          <h1 className="text-3xl font-extrabold text-slate-800 tracking-tight">Habibeat</h1>
+          <img
+            src={logo}
+            alt="Logo Habibeat"
+            className="w-45 h-auto mx-auto mb-4"
+          />
           <p className="text-slate-500 font-medium">Inventory Tracking System</p>
         </div>
 

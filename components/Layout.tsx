@@ -1,6 +1,6 @@
-
 import React from 'react';
 import { User } from '../types';
+import logo from '../assets/logo.png';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -27,14 +27,18 @@ const Layout: React.FC<LayoutProps> = ({
       <aside className="w-64 bg-white border-r border-slate-200 flex flex-col hidden md:flex shadow-xl shadow-slate-100 z-30">
         <div className="p-6 border-b border-slate-100">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-indigo-600 flex items-center justify-center shadow-lg shadow-indigo-100">
-                <i className="fas fa-boxes-stacked text-white text-lg"></i>
-            </div>
+            <img
+              src={logo}
+              alt="Logo Habibeat"
+              className="w-12 h-12 object-contain"
+            />
             <div>
-                <h1 className="text-xl font-extrabold text-slate-800 tracking-tight leading-none">
-                    Habibeat
-                </h1>
-                <p className="text-[10px] text-indigo-500 mt-1 uppercase font-bold tracking-widest">Inventory</p>
+              <h1 className="text-xl font-extrabold text-slate-800 tracking-tight leading-none">
+                Habibeat
+              </h1>
+              <p className="text-[10px] text-indigo-500 mt-1 uppercase font-bold tracking-widest">
+                Inventory
+              </p>
             </div>
           </div>
         </div>
@@ -52,15 +56,18 @@ const Layout: React.FC<LayoutProps> = ({
               </button>
             )}
             <button 
-                onClick={onLogout}
-                className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold text-rose-500 hover:bg-rose-50 transition-all border border-transparent hover:border-rose-100"
+              onClick={onLogout}
+              className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold text-rose-500 hover:bg-rose-50 transition-all border border-transparent hover:border-rose-100"
             >
               <i className="fas fa-power-off"></i>
               Logout
             </button>
           </div>
 
-          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2 px-2">Navigasi Tanggal</p>
+          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2 px-2">
+            Navigasi Tanggal
+          </p>
+
           {Array.from({ length: 31 }, (_, i) => i + 1).map((day) => {
             const isFuture = day > today;
             return (
@@ -95,8 +102,12 @@ const Layout: React.FC<LayoutProps> = ({
               {currentUser?.name.charAt(0)}
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-bold text-slate-800 truncate">{currentUser?.name}</p>
-              <p className="text-[10px] font-bold text-slate-400 uppercase">{currentUser?.role}</p>
+              <p className="text-sm font-bold text-slate-800 truncate">
+                {currentUser?.name}
+              </p>
+              <p className="text-[10px] font-bold text-slate-400 uppercase">
+                {currentUser?.role}
+              </p>
             </div>
           </div>
         </div>
@@ -106,43 +117,46 @@ const Layout: React.FC<LayoutProps> = ({
       <main className="flex-1 flex flex-col overflow-hidden">
         {/* Mobile Header */}
         <header className="md:hidden bg-white border-b border-slate-200 p-4 flex items-center justify-between z-20 shadow-sm">
-            <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center">
-                    <i className="fas fa-boxes-stacked text-white text-xs"></i>
-                </div>
-                <h1 className="text-lg font-bold text-slate-800 tracking-tight">Habibeat</h1>
-            </div>
-            <div className="flex items-center gap-2">
-              <select 
-                  value={activeDay} 
-                  onChange={(e) => onSelectDay(Number(e.target.value))}
-                  className="bg-slate-100 border-none text-[10px] rounded-lg px-2 py-1.5 outline-none font-bold text-slate-600"
-              >
-                  {Array.from({ length: 31 }, (_, i) => i + 1)
-                    .filter(day => day <= today) // Hanya tampilkan sampai hari ini di HP
-                    .map(day => (
-                      <option key={day} value={day}>Tgl {day}</option>
-                  ))}
-              </select>
-              
-              {currentUser?.role === 'admin' && (
-                <button 
-                  onClick={onOpenUserManagement}
-                  className="w-8 h-8 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center"
-                  title="Kelola User"
-                >
-                  <i className="fas fa-users-cog text-xs"></i>
-                </button>
-              )}
+          <div className="flex items-center gap-2">
+            <img
+              src={logo}
+              alt="Logo Habibeat"
+              className="w-10 h-10 object-contain"
+            />
+            <h1 className="text-lg font-bold text-slate-800 tracking-tight">Habibeat</h1>
+          </div>
 
+          <div className="flex items-center gap-2">
+            <select 
+              value={activeDay} 
+              onChange={(e) => onSelectDay(Number(e.target.value))}
+              className="bg-slate-100 border-none text-[10px] rounded-lg px-2 py-1.5 outline-none font-bold text-slate-600"
+            >
+              {Array.from({ length: 31 }, (_, i) => i + 1)
+                .filter(day => day <= today)
+                .map(day => (
+                  <option key={day} value={day}>Tgl {day}</option>
+              ))}
+            </select>
+            
+            {currentUser?.role === 'admin' && (
               <button 
-                onClick={onLogout} 
-                className="w-8 h-8 rounded-lg bg-rose-50 text-rose-500 flex items-center justify-center"
-                title="Logout"
+                onClick={onOpenUserManagement}
+                className="w-8 h-8 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center"
+                title="Kelola User"
               >
-                <i className="fas fa-power-off text-xs"></i>
+                <i className="fas fa-users-cog text-xs"></i>
               </button>
-            </div>
+            )}
+
+            <button 
+              onClick={onLogout} 
+              className="w-8 h-8 rounded-lg bg-rose-50 text-rose-500 flex items-center justify-center"
+              title="Logout"
+            >
+              <i className="fas fa-power-off text-xs"></i>
+            </button>
+          </div>
         </header>
 
         {/* Content Area */}
