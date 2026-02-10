@@ -134,7 +134,7 @@ const InventoryTable: React.FC<InventoryTableProps> = ({
   };
 
   const renderStatus = (productId: string, field: string) => {
-    const status = syncStatuses[`${productId}:${field}`];
+    const status = syncStatuses[`${section}:${productId}:${field}`];
     if (!status) return null;
 
     return (

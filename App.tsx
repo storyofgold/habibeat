@@ -212,7 +212,7 @@ const App: React.FC = () => {
   const handleUpdateEntry = useCallback(async (productId: string, field: string, value: string | number) => {
     if (!currentUser) return;
     
-    const statusKey = `${productId}:${field}`;
+    const statusKey = `${activeSection}:${productId}:${field}`;
     const timestamp = new Date().toISOString();
 
     setDailyData(prev => {
@@ -383,6 +383,7 @@ const App: React.FC = () => {
         </div>
         
         <InventoryTable 
+          key={activeSection} /* IMPORTANT: Reset local state when section changes */
           stocks={currentStocks} day={activeDay} currentUser={currentUser}
           onUpdateEntry={handleUpdateEntry} 
           onAddProduct={() => setIsModalOpen(true)}
