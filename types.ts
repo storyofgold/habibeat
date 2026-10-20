@@ -30,6 +30,21 @@ export interface DailyStockEntry {
   year?: number;
 }
 
+// Raw row shape stored in the database (snake_case, provider-agnostic)
+export interface StockEntryRow {
+  product_id: string;
+  section: 'gudang' | 'booth';
+  day: number;
+  month: number;
+  year: number;
+  opening_stock: number;
+  stock_in: number;
+  stock_out: number;
+  description: string;
+  last_modified_by?: string;
+  last_modified_at?: string;
+}
+
 export interface DayData {
   day: number;
   entries: Record<string, DailyStockEntry>;

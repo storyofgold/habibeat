@@ -7,23 +7,28 @@ import StatsCards from './components/StatsCards';
 import ProductModal from './components/ProductModal';
 import Login from './components/Login';
 import UserManagement from './components/UserManagement';
-import { supabase } from './lib/supabase';
-
-const SESSION_KEY = 'habibeat_session_v5';
+import { api } from './lib/api';
 
 // Type for separated data: section -> day -> productId -> entry
 type SeparatedDailyData = Record<string, Record<number, Record<string, DailyStockEntry>>>;
 
 const App: React.FC = () => {
-  const [currentUser, setCurrentUser] = useState<User | null>(() => {
-    const saved = localStorage.getItem(SESSION_KEY);
-    return saved ? JSON.parse(saved) : null;
-  });
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [authReady, setAuthReady] = useState(false);
 
-const handleLogout = () => {
-  localStorage.removeItem(SESSION_KEY);
-  setCurrentUser(null);
-};
+  const handleLogout = () => {
+    api.logout().catch(() => {});
+    setCurrentUser(null);
+  };
+
+  // Firebase manages the session; restore it on load.
+  useEffect(() => {
+    const unsubscribe = api.onAuthChange(user => {
+      setCurrentUser(user);
+      setAuthReady(true);
+    });
+    return unsubscribe;
+  }, []);
 
 
   const [users, setUsers] = useState<User[]>([]);
@@ -91,22 +96,16 @@ const handleLogout = () => {
 
     // Fetch entries for prev month
     // We try to get the highest day available for that month
-    const { data, error } = await supabase
-      .from('daily_entries')
-      .select('*')
-      .eq('month', prevMonth)
-      .eq('year', prevYear)
-      .order('day', { ascending: false });
-
-    if (error || !data) return;
+    const entries = await api.getEntries(prevMonth, prevYear);
+    if (entries.length === 0) return;
 
     // Process data to find closing stock for each product per section
     const closingData: Record<string, Record<string, number>> = { gudang: {}, booth: {} };
 
-    // We iterate through data. Since it's ordered by day desc, the first time we see a product, that's its latest state.
+    // We iterate newest-day-first; the first time we see a product, that's its latest state.
     const processedKeys = new Set<string>(); // "section:productId"
 
-    data.forEach(entry => {
+    [...entries].sort((a, b) => b.day - a.day).forEach(entry => {
         const key = `${entry.section}:${entry.product_id}`;
         if (!processedKeys.has(key)) {
             // Found latest entry for this product
@@ -127,24 +126,19 @@ const handleLogout = () => {
     try {
       setIsLoading(true);
       // 1. Fetch Users & Products (Static)
-      const { data: usersData } = await supabase.from('app_users').select('*');
-      if (usersData) setUsers(usersData.map(u => ({ id: u.id, username: u.username, name: u.name, role: u.role, isActive: u.is_active, password: u.password })));
+      const usersData = await api.listUsers();
+      setUsers(usersData);
 
-      const { data: productsData } = await supabase.from('products').select('*').order('name');
-      if (productsData) setProducts(productsData.map(p => ({ id: p.id, name: p.name, unit: p.unit, unitPrice: Number(p.unit_price) })));
+      const productsData = await api.listProducts();
+      setProducts(productsData);
 
       // 2. Fetch Entries for SPECIFIC MONTH/YEAR
       const targetMonth = viewDate.getMonth() + 1;
       const targetYear = viewDate.getFullYear();
 
-      const { data: entriesData, error } = await supabase.from('daily_entries')
-        .select('*')
-        .eq('month', targetMonth)
-        .eq('year', targetYear);
+      const entriesData = await api.getEntries(targetMonth, targetYear);
 
-      if (error) console.error("Data entries fetch error:", error);
-
-      if (entriesData) {
+      if (entriesData.length > 0) {
         const organized: SeparatedDailyData = { gudang: {}, booth: {} };
         entriesData.forEach(entry => {
           const section = (entry.section as 'gudang' | 'booth') || 'gudang'; 
@@ -183,22 +177,21 @@ const handleLogout = () => {
   };
 
   // Re-fetch when Month changes
+  // Fetch when logged in and when the viewed month changes
   useEffect(() => {
+    if (!currentUser) return;
     fetchData();
-  }, [viewDate]); // Removed activeDay dependency, we don't need to refetch on day change, just state calculation
+  }, [viewDate, currentUser]); // Removed activeDay dependency, we don't need to refetch on day change
 
   // Realtime Subscription
   useEffect(() => {
-    const channel = supabase
-      .channel('db-changes')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'daily_entries' }, (payload) => {
-        const entry = (payload.new || payload.old) as any;
+    if (!currentUser) return;
+
+    const targetMonth = viewDate.getMonth() + 1;
+    const targetYear = viewDate.getFullYear();
+
+    const unsubscribe = api.subscribeEntries(targetMonth, targetYear, (entry) => {
         if (!entry || !entry.product_id) return;
-        
-        // Only update if the change belongs to the currently viewed month
-        const currentMonth = viewDate.getMonth() + 1;
-        const currentYear = viewDate.getFullYear();
-        if (entry.month !== currentMonth || entry.year !== currentYear) return;
 
         const incomingTime = new Date(entry.last_modified_at || 0).getTime();
         const localTime = lastUpdateRef.current[`${entry.section}:${entry.day}:${entry.product_id}`] || 0;
@@ -228,15 +221,10 @@ const handleLogout = () => {
           updatedSection[day] = updatedDay;
           return { ...prev, [section]: updatedSection };
         });
-      })
-      .subscribe();
+    });
 
-    return () => { supabase.removeChannel(channel); };
-  }, [viewDate]);
-
-  useEffect(() => {
-    if (currentUser) localStorage.setItem(SESSION_KEY, JSON.stringify(currentUser));
-  }, [currentUser]);
+    return unsubscribe;
+  }, [viewDate, currentUser]);
 
   const dailyCalculations = useMemo(() => {
     const results: Record<string, Record<number, CalculatedStock[]>> = { gudang: {}, booth: {} };
@@ -363,11 +351,10 @@ const handleLogout = () => {
       
       const finalEntry = { ...entryToSave, [field]: value };
 
-      const { error } = await supabase.from('daily_entries').upsert({
-        product_id: productId, 
+      await api.upsertEntry({
+        product_id: productId,
         day: activeDay,
         section: activeSection,
-        // Ensure month and year are sent
         month: viewDate.getMonth() + 1,
         year: viewDate.getFullYear(),
         opening_stock: Number(field === 'openingStock' ? value : (finalEntry.openingStock || 0)),
@@ -376,22 +363,17 @@ const handleLogout = () => {
         description: field === 'description' ? String(value) : (finalEntry.description || ''),
         last_modified_by: currentUser.username,
         last_modified_at: timestamp
-      }, { onConflict: 'product_id,day,section,month,year' }); // Updated Conflict constraint assumption
+      });
 
-      if (error) {
-        console.error("Sync Error:", error.message);
-        setSyncStatuses(prev => ({ ...prev, [statusKey]: 'error' }));
-      } else {
-        lastUpdateRef.current[`${activeSection}:${activeDay}:${productId}`] = new Date(timestamp).getTime();
-        setSyncStatuses(prev => ({ ...prev, [statusKey]: 'success' }));
-        setTimeout(() => {
-          setSyncStatuses(prev => {
-            const next = { ...prev };
-            delete next[statusKey];
-            return next;
-          });
-        }, 2000);
-      }
+      lastUpdateRef.current[`${activeSection}:${activeDay}:${productId}`] = new Date(timestamp).getTime();
+      setSyncStatuses(prev => ({ ...prev, [statusKey]: 'success' }));
+      setTimeout(() => {
+        setSyncStatuses(prev => {
+          const next = { ...prev };
+          delete next[statusKey];
+          return next;
+        });
+      }, 2000);
     } catch (e) {
       setSyncStatuses(prev => ({ ...prev, [statusKey]: 'error' }));
     } finally {
@@ -401,12 +383,8 @@ const handleLogout = () => {
 
   const handleSaveProduct = useCallback(async (name: string, unit: string, price: number) => {
     try {
-      if (editingProduct) {
-        await supabase.from('products').update({ name, unit, unit_price: price }).eq('id', editingProduct.id);
-      } else {
-        await supabase.from('products').insert({ name, unit, unit_price: price });
-      }
-      fetchData(); // Refresh product list
+      await api.saveProduct({ id: editingProduct?.id, name, unit, unit_price: price });
+      await fetchData(); // Refresh product list
       setIsModalOpen(false);
       setEditingProduct(null);
     } catch (e) { alert("Gagal simpan barang."); }
@@ -414,9 +392,8 @@ const handleLogout = () => {
 
   const handleAddUser = useCallback(async (username: string, name: string, role: 'admin' | 'staff', password?: string) => {
     try {
-      const { error } = await supabase.from('app_users').insert({ username, name, role, password, is_active: true });
-      if (error) throw error;
-      fetchData();
+      await api.createUser(username, name, role, password || '');
+      await fetchData();
     } catch (e: any) { alert("Gagal tambah user: " + e.message); }
   }, []);
 
@@ -424,20 +401,29 @@ const handleLogout = () => {
     try {
       const user = users.find(u => u.id === userId);
       if (!user) return;
-      const { error } = await supabase.from('app_users').update({ is_active: !user.isActive }).eq('id', userId);
-      if (error) throw error;
-      fetchData();
+      await api.setUserActive(userId, !user.isActive);
+      await fetchData();
     } catch (e: any) { alert("Gagal update status: " + e.message); }
   }, [users]);
 
   const handleDeleteUser = useCallback(async (userId: string) => {
     if (!window.confirm("Hapus user ini selamanya?")) return;
     try {
-      const { error } = await supabase.from('app_users').delete().eq('id', userId);
-      if (error) throw error;
-      fetchData();
+      await api.deleteUser(userId);
+      await fetchData();
     } catch (e: any) { alert("Gagal hapus user: " + e.message); }
   }, []);
+
+  if (!authReady) {
+    return (
+      <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-8">
+        <div className="w-10 h-10 border-4 border-indigo-600/20 border-t-indigo-600 rounded-full animate-spin mb-4"></div>
+        <p className="text-slate-400 font-black text-[9px] tracking-[0.4em] uppercase">Sinkronisasi Habibeat...</p>
+      </div>
+    );
+  }
+
+  if (!currentUser) return <Login onLogin={setCurrentUser} />;
 
   if (isLoading && products.length === 0) {
     return (
@@ -447,8 +433,6 @@ const handleLogout = () => {
       </div>
     );
   }
-
-  if (!currentUser) return <Login users={users} onLogin={setCurrentUser} />;
 
   return (
     <Layout 
@@ -505,7 +489,7 @@ const handleLogout = () => {
           onUpdateEntry={handleUpdateEntry} 
           onAddProduct={() => setIsModalOpen(true)}
           onEditProduct={(pid) => { setEditingProduct(products.find(p => p.id === pid) || null); setIsModalOpen(true); }} 
-          onDeleteProduct={(id) => { if(window.confirm("Hapus barang?")) supabase.from('products').delete().eq('id', id).then(() => fetchData()); }}
+          onDeleteProduct={(id) => { if(window.confirm("Hapus barang?")) api.deleteProduct(id).then(() => fetchData()); }}
           section={activeSection}
           syncStatuses={syncStatuses}
           isArchived={isHistoryView}

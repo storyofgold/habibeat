@@ -1,29 +1,29 @@
 import React, { useState } from 'react';
 import { User } from '../types';
+import { api } from '../lib/api';
 import logo from '@/assets/logo.png';
 
 interface LoginProps {
   onLogin: (user: User) => void;
-  users: User[];
 }
 
-const Login: React.FC<LoginProps> = ({ onLogin, users }) => {
-  const [username, setUsername] = useState('');
+const Login: React.FC<LoginProps> = ({ onLogin }) => {
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const user = users.find(u => u.username === username && u.password === password);
-    
-    if (user) {
-      if (!user.isActive) {
-        setError('Akun Anda sudah tidak aktif. Hubungi Admin.');
-        return;
-      }
+    setError('');
+    setIsSubmitting(true);
+    try {
+      const user = await api.login(email, password);
       onLogin(user);
-    } else {
-      setError('Username atau Password salah!');
+    } catch (err: any) {
+      setError(err?.message || 'Username atau Password salah!');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -50,15 +50,15 @@ const Login: React.FC<LoginProps> = ({ onLogin, users }) => {
             )}
             
             <div>
-              <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">Username</label>
+              <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">Email</label>
               <div className="relative">
                 <i className="far fa-user absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"></i>
                 <input 
-                  type="text" 
-                  value={username}
-                  onChange={(e) => setUsername(e.target.value)}
+                  type="email" 
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
                   className="w-full pl-11 pr-4 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all font-medium"
-                  placeholder="Masukkan username"
+                  placeholder="Masukkan email"
                   required
                 />
               </div>
@@ -81,9 +81,10 @@ const Login: React.FC<LoginProps> = ({ onLogin, users }) => {
 
             <button 
               type="submit"
-              className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-4 rounded-2xl shadow-lg shadow-indigo-100 transition-all hover:scale-[1.02] active:scale-[0.98] mt-4"
+              disabled={isSubmitting}
+              className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-4 rounded-2xl shadow-lg shadow-indigo-100 transition-all hover:scale-[1.02] active:scale-[0.98] mt-4 disabled:opacity-60 disabled:hover:scale-100"
             >
-              LOGIN KE SISTEM
+              {isSubmitting ? 'MEMPROSES...' : 'LOGIN KE SISTEM'}
             </button>
           </form>
 

@@ -1,7 +1,7 @@
 
 import React, { useState, useRef } from 'react';
 import { User } from '../types';
-import { supabase } from '../lib/supabase';
+import { api } from '../lib/api';
 
 interface UserManagementProps {
   isOpen: boolean;
@@ -103,22 +103,7 @@ const UserManagement: React.FC<UserManagementProps> = ({
   };
 
   const insertBatch = async (items: {name: string, unit: string}[]) => {
-    const payload = items.map(item => ({
-      name: item.name,
-      unit: item.unit,
-      unit_price: 0
-    }));
-
-    const { data, error } = await supabase
-      .from('products')
-      .insert(payload)
-      .select();
-
-    if (error) {
-      console.error("Bulk insert error:", error);
-      throw error;
-    }
-    return data ? data.length : 0;
+    return await api.importProducts(items);
   };
 
   const handleBulkImport = async () => {
@@ -295,10 +280,10 @@ const UserManagement: React.FC<UserManagementProps> = ({
             <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-4">Tambah User Baru</h4>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-1">
-                <label className="text-[10px] font-bold text-slate-400 uppercase px-1">Username</label>
+                <label className="text-[10px] font-bold text-slate-400 uppercase px-1">Email</label>
                 <input 
-                  type="text" 
-                  placeholder="Username" 
+                  type="email" 
+                  placeholder="email@contoh.com" 
                   value={newUsername}
                   onChange={(e) => setNewUsername(e.target.value)}
                   className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500/20 text-sm font-medium"
@@ -361,7 +346,7 @@ const UserManagement: React.FC<UserManagementProps> = ({
                       {user.name.charAt(0)}
                     </div>
                     <div>
-                      <p className="text-sm font-bold text-slate-800">{user.name} <span className="text-[10px] bg-slate-100 px-2 py-0.5 rounded ml-1 text-slate-400">@{user.username}</span></p>
+                      <p className="text-sm font-bold text-slate-800">{user.name} <span className="text-[10px] bg-slate-100 px-2 py-0.5 rounded ml-1 text-slate-400">{user.username}</span></p>
                       <p className="text-[10px] font-black text-indigo-500 uppercase mt-0.5">{user.role}</p>
                     </div>
                   </div>
