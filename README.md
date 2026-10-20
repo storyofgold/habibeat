@@ -25,12 +25,22 @@ Dibangun sebagai SPA (React + Vite) dengan backend **Firebase** (Auth + Firestor
 ## Tampilan
 
 ### Halaman Login
+
+Form masuk memakai **email** dan password. Sesi diurus Firebase Authentication (password di-hash, tidak disimpan di database aplikasi).
+
 ![Halaman Login](assets/screenshot-login.png)
 
-<!-- Dashboard (Gudang & Booth): simpan screenshot sebagai assets/screenshot-dashboard.png, lalu hapus tanda komentar di bawah ini.
-### Dashboard
-![Dashboard](assets/screenshot-dashboard.png)
--->
+### Dashboard Inventory
+
+Tampilan utama setelah login. Bagian-bagiannya:
+
+- **Sidebar kiri** — logo, navigator bulan (tombol ‹ ›), menu **Kelola User** (khusus admin), tombol **Logout**, dan daftar **Tanggal 1–31** untuk berpindah hari. Tanggal di masa depan terkunci.
+- **Header** — judul, tanggal aktif, dan indikator **Cloud Connected** (hijau) yang berubah jadi **Syncing...** (kuning) saat data sedang disimpan.
+- **Pemilih unit** — tab **UNIT GUDANG** dan **UNIT BOOTH** untuk berpindah data antar unit.
+- **Tabel stok** — kolom **#**, Nama Barang, Unit, **Awal**, **Masuk**, **Keluar**, **Akhir**, Keterangan, dan Aksi. Kolom **Masuk**/**Keluar** bisa diisi langsung; kolom **Akhir** dihitung otomatis (Awal + Masuk − Keluar). Tombol **PDF** dan **CSV** mengekspor laporan harian, sedangkan **Tambah** (khusus admin) untuk menambah barang.
+- **Info editor** — baris kecil di bawah pemilih unit menampilkan siapa yang terakhir mengubah data dan jamnya.
+
+![Dashboard Inventory](assets/screenshot-dashboard.png)
 
 ---
 
